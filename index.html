@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+content="width=device-width,
+initial-scale=1.0">
+
+<title>Smart IoT Analytics</title>
+
+<link rel="stylesheet"
+href="style.css">
+
+<link href=
+"https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+rel="stylesheet">
+
+<script src=
+"https://cdn.jsdelivr.net/npm/chart.js">
+</script>
+
+</head>
+
+<body>
+
+<div class="bg-glow"></div>
+
+<div class="dashboard">
+
+  <div class="sidebar">
+
+    <div class="logo">
+      ⚡ FaizTemp
+    </div>
+
+    <div class="menu">
+
+      <div class="menu-item active">
+        Dashboard
+      </div>
+
+      <div class="menu-item">
+        Analytics
+      </div>
+
+      <div class="menu-item">
+        Reports
+      </div>
+
+    </div>
+
+  </div>
+
+  <div class="main">
+
+    <div class="topbar">
+
+      <div>
+
+        <h1>
+          IoT Temperature Analytics
+        </h1>
+
+        <p>
+          Realtime Monitoring System
+        </p>
+
+      </div>
+
+      <div class="status-online">
+
+        <span class="dot"></span>
+        ONLINE
+
+      </div>
+
+    </div>
+
+    <div class="cards">
+
+      <div class="card">
+
+        <div class="card-title">
+          Current Temperature
+        </div>
+
+        <div class="temp"
+        id="temp">
+          --°C
+        </div>
+
+      </div>
+
+      <div class="card">
+
+        <div class="card-title">
+          System Status
+        </div>
+
+        <div class="status"
+        id="status">
+          CONNECTING...
+        </div>
+
+      </div>
+
+      <div class="card">
+
+        <div class="card-title">
+          Daily Average
+        </div>
+
+        <div class="avg"
+        id="avg">
+          --°C
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="chart-container">
+
+      <canvas id="chart">
+      </canvas>
+
+    </div>
+
+    <div class="history-card">
+
+      <h2>
+        Temperature History
+      </h2>
+
+      <div id="history">
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<script src="script.js">
+</script>
+
+</body>
+</html>
