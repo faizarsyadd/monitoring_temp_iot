@@ -77,7 +77,37 @@ body {
 /* =========================
    MOBILE RESPONSIVE FIX
    ========================= */
+/* =========================
+   DANGER MODE (OVERHEAT)
+   ========================= */
 
+/* Menimpa variabel warna utama saat mode danger aktif */
+body.danger-mode {
+    --primary-color: #ff4d4d; /* Merah */
+    --glow-color: rgba(255, 77, 77, 0.5);
+}
+
+/* Mengubah glow kartu saat danger */
+body.danger-mode .card-glow {
+    box-shadow: 0 0 20px rgba(255, 77, 77, 0.3);
+    border: 1px solid rgba(255, 77, 77, 0.5);
+}
+
+/* Mengubah teks neon menjadi merah */
+body.danger-mode .neon-text {
+    color: #ff4d4d;
+    text-shadow: 0 0 10px rgba(255, 77, 77, 0.8);
+}
+
+/* Sidebar logo ikut berubah */
+body.danger-mode .logo i {
+    color: #ff4d4d;
+}
+
+/* Indikator progress bar */
+body.danger-mode .progress {
+    background: #ff4d4d;
+}
 @media (max-width: 768px) {
     /* 1. Dashboard Layout: Ubah dari baris ke kolom */
     .dashboard {

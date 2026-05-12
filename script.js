@@ -1,25 +1,23 @@
 /* ============================================================
-   IOT DASHBOARD LOGIC - FaizTemp
-   Features: Realtime Fetch, Local Storage, Neon Chart, Anti-Lag
+   IOT DASHBOARD - HOSPITAL MONITOR MODE (ULTRA-RESPONSIVE)
    ============================================================ */
 
-const ESP32_IP = '192.168.1.9'; // Sesuaikan dengan IP di OLED
+const ESP32_IP = '192.168.1.9'; // SESUAIKAN IP ESP32 KAMU
 const API_URL = `http://${ESP32_IP}/data`;
 
-// 1. Inisialisasi Data dari Local Storage
+// Inisialisasi data (Gunakan data dummy awal agar chart tidak kosong saat load)
 let historyData = JSON.parse(localStorage.getItem('iotHistory')) || [];
 
-document.addEventListener('DOMContentLoaded', () => {
+// Tunggu DOM (HTML) siap sepenuhnya
+window.addEventListener('DOMContentLoaded', () => {
+    const canvasElement = document.getElementById('liveChart');
     
-    /* =========================
-       CHART CONFIGURATION
-       ========================= */
-    const ctx = document.getElementById('liveChart').getContext('2d');
-    
-    // Membuat Gradient untuk area di bawah garis
-    const fillGradient = ctx.createLinearGradient(0, 0, 0, 400);
-    fillGradient.addColorStop(0, 'rgba(0, 212, 255, 0.25)');
-    fillGradient.addColorStop(1, 'rgba(0, 212, 255, 0)');
+    if (!canvasElement) {
+        console.error("Elemen 'liveChart' tidak ditemukan di HTML!");
+        return;
+    }
+
+    const ctx = canvasElement.getContext('2d');
 
     const chart = new Chart(ctx, {
         type: 'line',
@@ -28,132 +26,121 @@ document.addEventListener('DOMContentLoaded', () => {
             datasets: [{
                 data: historyData.map(item => item.suhu),
                 borderColor: '#00d4ff',
-                borderWidth: 3,
-                tension: 0.4, // Membuat garis melengkung smooth
+                borderWidth: 2,
+                tension: 0.3,
                 fill: true,
-                backgroundColor: fillGradient,
-                
-                // Styling Titik (Points)
-                pointRadius: 4,
-                pointBackgroundColor: '#00d4ff',
-                pointBorderColor: 'rgba(0, 212, 255, 0.3)',
-                pointBorderWidth: 8,
-                hoverRadius: 7
+                backgroundColor: 'rgba(0, 212, 255, 0.05)',
+                pointRadius: 0, // Mode EKG (tanpa titik bulat)
+                pointHitRadius: 20
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            animation: false, // CRITICAL: Matikan animasi default agar tidak lag
-            plugins: {
-                legend: { display: false }
-            },
+            animation: false,
+            plugins: { legend: { display: false } },
             scales: {
                 x: {
                     grid: { display: false },
-                    ticks: { 
-                        color: '#8a8f9d',
-                        maxTicksLimit: 8 // Membatasi jumlah label agar tidak numpuk
-                    }
+                    ticks: { display: false }
                 },
                 y: {
-                    min: 20, // Sesuaikan batas bawah suhu
-                    max: 45, // Sesuaikan batas atas suhu
+                    // MENGUBAH SCALE MENJADI DINAMIS
+                    beginAtZero: false, 
+                    suggestedMin: 25,    // Batas bawah minimal tetap 25
+                    suggestedMax: 45,    // Jika suhu > 45, plafon akan otomatis naik sendiri
                     grid: { 
-                        color: 'rgba(255, 255, 255, 0.05)',
-                        drawBorder: false
+                        color: 'rgba(255, 255, 255, 0.05)', 
+                        drawBorder: false 
                     },
-                    ticks: { color: '#8a8f9d' }
+                    ticks: { 
+                        color: '#8a8f9d',
+                        // Menambahkan margin agar garis tidak mentok ke atas
+                        padding: 10 
+                    }
+                }
+            },
+            // Menambahkan padding agar tren di ujung kanan/atas tidak terpotong
+            layout: {
+                padding: {
+                    top: 20,
+                    right: 20,
+                    bottom: 10,
+                    left: 10
                 }
             }
-        },
-        // Plugin untuk efek Glow Neon pada garis
-        plugins: [{
-            beforeDraw: (chart) => {
-                const ctx = chart.ctx;
-                ctx.save();
-                ctx.shadowColor = 'rgba(0, 212, 255, 0.6)';
-                ctx.shadowBlur = 10;
-                ctx.shadowOffsetX = 0;
-                ctx.shadowOffsetY = 4;
-            },
-            afterDraw: (chart) => {
-                chart.ctx.restore();
-            }
-        }]
+        }
     });
 
-    /* =========================
-       CORE FUNCTIONS
-       ========================= */
-
+    /* 2. FUNGSI UPDATE DATA */
     async function updateDashboard() {
         try {
+            // Ambil data dari ESP32
             const response = await fetch(API_URL);
-            if (!response.ok) throw new Error('ESP32 Offline');
-            
+            if (!response.ok) throw new Error("Offline");
+
             const data = await response.json();
-            const suhuSekarang = data.suhu;
+            const suhu = data.suhu;
             const isHot = data.isHot;
-            const waktuSekarang = new Date().toLocaleTimeString([], { hour12: false });
+            const waktu = new Date().toLocaleTimeString([], { hour12: false, hour:'2-digit', minute:'2-digit', second:'2-digit' });
 
-            // 1. Update Tampilan Angka & Status
-            document.getElementById('temp-val').innerText = `${suhuSekarang.toFixed(1)}°C`;
-            document.getElementById('avg-display').innerText = `${suhuSekarang.toFixed(1)}°C`;
-
+            // A. Update UI Teks
+            document.getElementById('temp-val').innerText = `${suhu.toFixed(1)}°C`;
+            document.getElementById('avg-display').innerText = `${suhu.toFixed(1)}°C`;
             const statusBadge = document.getElementById('status-val');
+
+            // B. Mode Danger (Merah)
             if (isHot) {
-                statusBadge.innerText = "DANGER";
-                statusBadge.style.color = "#ff4d4d";
-                statusBadge.classList.add('neon-red'); // Jika ada CSS glow merah
+                document.body.classList.add('danger-mode');
+                statusBadge.innerText = "CRITICAL";
+                statusBadge.className = "neon-red"; // Pastikan class ini ada di CSS
+                chart.data.datasets[0].borderColor = '#ff4d4d';
+                chart.data.datasets[0].backgroundColor = 'rgba(255, 77, 77, 0.1)';
             } else {
+                document.body.classList.remove('danger-mode');
                 statusBadge.innerText = "NORMAL";
-                statusBadge.style.color = "#00ff9d";
+                statusBadge.className = "neon-green";
+                chart.data.datasets[0].borderColor = '#00d4ff';
+                chart.data.datasets[0].backgroundColor = 'rgba(0, 212, 255, 0.05)';
             }
 
-            // 2. Simpan ke History (Array & LocalStorage)
-            historyData.push({ waktu: waktuSekarang, suhu: suhuSekarang });
-            if (historyData.length > 50) historyData.shift(); // Simpan max 50 data
-            
-            localStorage.setItem('iotHistory', JSON.stringify(historyData));
+            // C. Update Array Data
+            historyData.push({ waktu, suhu });
+            if (historyData.length > 30) historyData.shift(); // Hanya simpan 30 titik terbaru di layar
 
-            // 3. Update Chart secara instan
+            // D. Refresh Chart Instan
             chart.data.labels = historyData.map(d => d.waktu);
             chart.data.datasets[0].data = historyData.map(d => d.suhu);
-            chart.update('none'); // 'none' mematikan animasi update agar enteng
+            chart.update('none'); 
 
-            // 4. Update UI Pendukung
+            // E. Update Tabel & Summary
             renderTable();
-            renderSummary();
+            updateSummary();
 
-        } catch (error) {
-            console.error("Fetch Error:", error);
+        } catch (err) {
+            // Jika ESP32 mati, tampilkan status offline
             document.getElementById('status-val').innerText = "DISCONNECTED";
-            document.getElementById('status-val').style.color = "#8a8f9d";
+            document.getElementById('status-val').className = "neon-text";
         }
     }
 
+    /* 3. FUNGSI PENDUKUNG */
     function renderTable() {
         const tbody = document.getElementById('historyBody');
-        if (!tbody) return;
-
-        // Ambil 10 data terakhir untuk tabel, tampilkan yang terbaru di atas
-        const latestData = [...historyData].reverse().slice(0, 10);
-        
-        tbody.innerHTML = latestData.map(item => `
+        const latest = [...historyData].reverse().slice(0, 6);
+        tbody.innerHTML = latest.map(d => `
             <tr>
-                <td>${item.waktu}</td>
-                <td>${item.suhu.toFixed(1)}°C</td>
-                <td><i class="fas fa-arrow-up-right" style="color: #00ff9d; font-size: 12px;"></i></td>
+                <td>${d.waktu}</td>
+                <td>${d.suhu.toFixed(1)}°C</td>
+                <td><i class="fas fa-wave-square" style="color: ${chart.data.datasets[0].borderColor}"></i></td>
             </tr>
         `).join('');
     }
 
-    function renderSummary() {
+    function updateSummary() {
         if (historyData.length === 0) return;
-
         const temps = historyData.map(d => d.suhu);
-        const avg = (temps.reduce((a, b) => a + b, 0) / temps.length).toFixed(2);
+        const avg = (temps.reduce((a, b) => a + b, 0) / temps.length).toFixed(1);
         const peak = Math.max(...temps).toFixed(1);
         const low = Math.min(...temps).toFixed(1);
 
@@ -162,17 +149,12 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('stat-low').innerText = `${low}°C`;
     }
 
-    /* =========================
-       EXECUTION
-       ========================= */
-    
-    // Jalankan render awal dari data LocalStorage
-    renderTable();
-    renderSummary();
-
-    // Interval ambil data tiap 2.5 detik (sesuaikan dengan kecepatan ESP32)
-    setInterval(updateDashboard, 2500);
-    
-    // Panggil pertama kali saat halaman dibuka
+    // Jalankan interval tiap 1 detik (1000ms)
+    setInterval(updateDashboard, 1000);
     updateDashboard();
+
+    // Simpan ke storage tiap 10 detik agar tidak berat
+    setInterval(() => {
+        localStorage.setItem('iotHistory', JSON.stringify(historyData));
+    }, 10000);
 });
