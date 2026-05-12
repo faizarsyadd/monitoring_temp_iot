@@ -1,37 +1,55 @@
+/**
+ * FaizTemp IoT Dashboard - Full Script
+ * Integrasi: Live Chart (Suhu & Ultrasonic Pulse) + Radar System
+ */
+
 const ESP32_IP = '192.168.1.9'; // SESUAIKAN IP ESP32 KAMU
 const API_URL = `http://${ESP32_IP}/data`;
 
 let historyData = JSON.parse(localStorage.getItem('iotHistory')) || [];
-let currentDist = 0; // Variabel global untuk menampung jarak sensor
+let currentDist = 0;
 
-// Tunggu DOM (HTML) siap sepenuhnya
 window.addEventListener('DOMContentLoaded', () => {
     const canvasElement = document.getElementById('liveChart');
-    const radarCanvas = document.getElementById('radarCanvas'); // Pastikan ID ini ada di HTML
+    const radarCanvas = document.getElementById('radarCanvas');
     
-    if (!canvasElement) {
-        console.error("Elemen 'liveChart' tidak ditemukan di HTML!");
+    if (!canvasElement || !radarCanvas) {
+        console.error("Elemen UI tidak ditemukan!");
         return;
     }
 
     /* ============================================================
-       1. KONFIGURASI CHART (SUHU)
+       1. MULTI-AXIS CHART (SUHU & PULSA ULTRASONIK)
        ============================================================ */
     const ctx = canvasElement.getContext('2d');
     const chart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: historyData.map(item => item.waktu),
-            datasets: [{
-                data: historyData.map(item => item.suhu),
-                borderColor: '#00d4ff',
-                borderWidth: 2,
-                tension: 0.3,
-                fill: true,
-                backgroundColor: 'rgba(0, 212, 255, 0.05)',
-                pointRadius: 0, 
-                pointHitRadius: 20
-            }]
+            datasets: [
+                {
+                    label: 'Temperature',
+                    data: historyData.map(item => item.suhu),
+                    borderColor: '#00d4ff',
+                    backgroundColor: 'rgba(0, 212, 255, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.4, // Melengkung halus
+                    fill: true,
+                    yAxisID: 'y',
+                    pointRadius: 0
+                },
+                {
+                    label: 'Ultrasonic Pulse',
+                    data: historyData.map(item => item.pulse || 0),
+                    borderColor: '#00ff9d', // Hijau Radar
+                    backgroundColor: 'rgba(0, 255, 157, 0.05)',
+                    borderWidth: 2,
+                    tension: 0, // Kaku (Square Wave) untuk sinyal deteksi
+                    fill: true,
+                    yAxisID: 'y1',
+                    pointRadius: 0
+                }
+            ]
         },
         options: {
             responsive: true,
@@ -41,22 +59,29 @@ window.addEventListener('DOMContentLoaded', () => {
             scales: {
                 x: { grid: { display: false }, ticks: { display: false } },
                 y: {
-                    beginAtZero: false, 
-                    suggestedMin: 25, 
-                    suggestedMax: 45, 
-                    grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false },
-                    ticks: { color: '#8a8f9d', padding: 10 }
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    suggestedMin: 20,
+                    suggestedMax: 50,
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: '#8a8f9d' }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    min: 0,
+                    max: 100,
+                    grid: { drawOnChartArea: false },
+                    ticks: { display: false } // Sembunyikan angka pulsa agar bersih
                 }
-            },
-            layout: { padding: { top: 20, right: 20, bottom: 10, left: 10 } }
+            }
         }
     });
 
     /* ============================================================
-       2. LOGIKA RADAR (ULTRASONIK) - BERDASARKAN image_e182b6.png
-       ============================================================ */
-   /* ============================================================
-       RADAR TACTICAL V2 (UPGRADED VISUALS)
+       2. RADAR TACTICAL V2 (UPGRADED VISUALS)
        ============================================================ */
     const rtx = radarCanvas.getContext('2d');
     let angle = 0;
@@ -67,88 +92,69 @@ window.addEventListener('DOMContentLoaded', () => {
     const radius = 120;
 
     function drawRadar() {
-        // 1. Efek Fade Out yang halus (Motion Blur)
-        rtx.fillStyle = 'rgba(9, 12, 16, 0.12)';
+        // Efek Motion Blur pada sapuan
+        rtx.fillStyle = 'rgba(9, 12, 16, 0.15)';
         rtx.fillRect(0, 0, radarCanvas.width, radarCanvas.height);
 
-        // 2. Lingkaran Grid dengan Efek Glow
-        rtx.shadowBlur = 0;
+        // Lingkaran Grid
         rtx.strokeStyle = 'rgba(0, 255, 157, 0.15)';
+        rtx.setLineDash([]);
         for (let i = 1; i <= 4; i++) {
             rtx.beginPath();
             rtx.arc(centerX, centerY, (radius / 4) * i, 0, Math.PI * 2);
             rtx.stroke();
         }
 
-        // 3. Garis Sumbu (Arah Mata Angin)
-        rtx.setLineDash([5, 5]); // Garis putus-putus
-        rtx.beginPath();
-        rtx.moveTo(centerX - radius, centerY); rtx.lineTo(centerX + radius, centerY);
-        rtx.moveTo(centerX, centerY - radius); rtx.lineTo(centerX, centerY + radius);
-        rtx.stroke();
-        rtx.setLineDash([]); // Reset ke garis solid
-
-        // 4. Sapuan Radar dengan Gradiasi (Sweep Effect)
+        // Sapuan Radar (Gradient Sweep)
         rtx.save();
         rtx.translate(centerX, centerY);
         rtx.rotate(angle);
-        
-        let gradient = rtx.createRadialGradient(0, 0, 0, 0, 0, radius);
-        gradient.addColorStop(0, 'rgba(0, 255, 157, 0)');
-        gradient.addColorStop(1, 'rgba(0, 255, 157, 0.4)');
+        let grad = rtx.createRadialGradient(0, 0, 0, 0, 0, radius);
+        grad.addColorStop(0, 'transparent');
+        grad.addColorStop(1, 'rgba(0, 255, 157, 0.4)');
         
         rtx.beginPath();
         rtx.moveTo(0, 0);
-        rtx.arc(0, 0, radius, -0.2, 0); // Lebar sapuan
-        rtx.closePath();
-        rtx.fillStyle = gradient;
+        rtx.arc(0, 0, radius, -0.4, 0);
+        rtx.fillStyle = grad;
         rtx.fill();
-        
-        // Garis depan sapuan yang terang
-        rtx.beginPath();
+
+        // Garis depan sapuan
         rtx.strokeStyle = '#00ff9d';
         rtx.lineWidth = 2;
+        rtx.beginPath();
         rtx.moveTo(0, 0);
         rtx.lineTo(radius, 0);
         rtx.stroke();
         rtx.restore();
 
-        // 5. Gambar Objek (Titik Merah Berkedip)
+        // Gambar Objek (Titik Merah Berkedip)
         if (currentDist > 0 && currentDist < 100) { 
             let drawDist = (currentDist / 100) * radius;
-            // Titik di sumbu depan (atas)
-            let objX = centerX;
-            let objY = centerY - drawDist;
+            let objY = centerY - drawDist; // Objek muncul di sumbu vertikal atas
 
-            // Efek deteksi objek (Ping)
             rtx.beginPath();
             rtx.fillStyle = '#ff4d4d';
             rtx.shadowBlur = 15;
             rtx.shadowColor = "#ff4d4d";
-            rtx.arc(objX, objY, 5, 0, Math.PI * 2);
+            rtx.arc(centerX, objY, 6, 0, Math.PI * 2);
             rtx.fill();
             
-            // Lingkaran luar objek (Ring deteksi)
+            // Ring Pulse Objek
             rtx.beginPath();
             rtx.strokeStyle = `rgba(255, 77, 77, ${Math.abs(Math.sin(Date.now()/200))})`;
-            rtx.arc(objX, objY, 10, 0, Math.PI * 2);
+            rtx.arc(centerX, objY, 12, 0, Math.PI * 2);
             rtx.stroke();
             rtx.shadowBlur = 0;
         }
 
-        // 6. Dekorasi Angka Derajat (Opsional)
-        rtx.fillStyle = "rgba(0, 255, 157, 0.5)";
-        rtx.font = "8px Orbitron";
-        rtx.fillText("0°", centerX - 5, centerY - radius - 5);
-        rtx.fillText("180°", centerX - 10, centerY + radius + 12);
-
-        angle += 0.03; // Putaran pelan agar elegan
+        angle += 0.04;
         requestAnimationFrame(drawRadar);
     }
-    drawRadar(); // Mulai animasi radar
+    drawRadar();
 
     /* ============================================================
-       3. FUNGSI UPDATE DATA (INTEGRASI ESP32)
+       3. UPDATE DASHBOARD (LOGIC & API)
        ============================================================ */
     async function updateDashboard() {
         try {
@@ -156,46 +162,40 @@ window.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) throw new Error("Offline");
 
             const data = await response.json();
-            const suhu = data.suhu;
-            const isHot = data.isHot;
-            currentDist = data.jarak; // Update variabel jarak untuk radar
-            
             const waktu = new Date().toLocaleTimeString([], { hour12: false, hour:'2-digit', minute:'2-digit', second:'2-digit' });
+            
+            currentDist = data.jarak;
+            
+            // Konversi Jarak ke Pulsa (Semakin dekat, grafik semakin tinggi)
+            let pulseValue = (currentDist > 0 && currentDist < 100) ? (100 - currentDist) : 0;
 
-            // A. Update UI Teks & Radar Info
-            document.getElementById('temp-val').innerText = `${suhu.toFixed(1)}°C`;
-            document.getElementById('avg-display').innerText = `${suhu.toFixed(1)}°C`;
-            if(document.getElementById('radar-dist')) {
-                document.getElementById('radar-dist').innerText = currentDist.toFixed(1);
-            }
+            // A. Update UI Teks
+            document.getElementById('temp-val').innerText = `${data.suhu.toFixed(1)}°C`;
+            document.getElementById('radar-dist').innerText = currentDist.toFixed(1);
             
             const statusBadge = document.getElementById('status-val');
-
-            // B. Mode Danger (Suhu atau Jarak terlalu dekat < 20cm)
-            if (isHot || (currentDist < 20 && currentDist > 0)) {
-                document.body.classList.add('danger-mode');
-                statusBadge.innerText = isHot ? "CRITICAL TEMP" : "OBJECT DETECTED";
-                statusBadge.className = "neon-red"; 
-                chart.data.datasets[0].borderColor = '#ff4d4d';
-                chart.data.datasets[0].backgroundColor = 'rgba(255, 77, 77, 0.1)';
+            if (data.isHot || (currentDist < 20 && currentDist > 0)) {
+                statusBadge.innerText = "CRITICAL";
+                statusBadge.className = "neon-red";
             } else {
-                document.body.classList.remove('danger-mode');
                 statusBadge.innerText = "NORMAL";
                 statusBadge.className = "neon-green";
-                chart.data.datasets[0].borderColor = '#00d4ff';
-                chart.data.datasets[0].backgroundColor = 'rgba(0, 212, 255, 0.05)';
             }
 
-            // C. Update Array Data Chart
-            historyData.push({ waktu, suhu });
-            if (historyData.length > 30) historyData.shift(); 
+            // B. Update Data History
+            historyData.push({ 
+                waktu, 
+                suhu: data.suhu, 
+                pulse: pulseValue 
+            });
+            if (historyData.length > 40) historyData.shift();
 
-            // D. Refresh Chart
+            // C. Refresh Chart Instan
             chart.data.labels = historyData.map(d => d.waktu);
             chart.data.datasets[0].data = historyData.map(d => d.suhu);
+            chart.data.datasets[1].data = historyData.map(d => d.pulse);
             chart.update('none'); 
 
-            // E. Update Tabel & Summary
             renderTable();
             updateSummary();
 
@@ -210,13 +210,12 @@ window.addEventListener('DOMContentLoaded', () => {
        ============================================================ */
     function renderTable() {
         const tbody = document.getElementById('historyBody');
-        if(!tbody) return;
         const latest = [...historyData].reverse().slice(0, 6);
         tbody.innerHTML = latest.map(d => `
             <tr>
                 <td>${d.waktu}</td>
                 <td>${d.suhu.toFixed(1)}°C</td>
-                <td><i class="fas fa-wave-square" style="color: ${chart.data.datasets[0].borderColor}"></i></td>
+                <td><i class="fas fa-wave-square" style="color: ${d.pulse > 0 ? '#00ff9d' : '#444'}"></i> ${d.pulse > 0 ? 'Active' : 'Idle'}</td>
             </tr>
         `).join('');
     }
@@ -224,20 +223,14 @@ window.addEventListener('DOMContentLoaded', () => {
     function updateSummary() {
         if (historyData.length === 0) return;
         const temps = historyData.map(d => d.suhu);
-        const avg = (temps.reduce((a, b) => a + b, 0) / temps.length).toFixed(1);
-        const peak = Math.max(...temps).toFixed(1);
-        const low = Math.min(...temps).toFixed(1);
-
-        if(document.getElementById('stat-avg')) document.getElementById('stat-avg').innerText = `${avg}°C`;
-        if(document.getElementById('stat-peak')) document.getElementById('stat-peak').innerText = `${peak}°C`;
-        if(document.getElementById('stat-low')) document.getElementById('stat-low').innerText = `${low}°C`;
+        document.getElementById('stat-avg').innerText = `${(temps.reduce((a, b) => a + b, 0) / temps.length).toFixed(1)}°C`;
+        document.getElementById('stat-peak').innerText = `${Math.max(...temps).toFixed(1)}°C`;
+        document.getElementById('stat-low').innerText = `${Math.min(...temps).toFixed(1)}°C`;
     }
 
-    // Interval Update
     setInterval(updateDashboard, 1000);
     updateDashboard();
 
-    // Simpan history tiap 10 detik
     setInterval(() => {
         localStorage.setItem('iotHistory', JSON.stringify(historyData));
     }, 10000);

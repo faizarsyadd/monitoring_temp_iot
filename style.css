@@ -202,3 +202,25 @@ body.danger-mode .progress {
     max-width: 100%;
     max-height: 100%;
 }
+.chart-container {
+    position: relative;
+    overflow: hidden;
+}
+
+/* Efek garis scan tipis yang lewat di chart */
+.chart-container::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 255, 157, 0.05), transparent);
+    animation: scan 3s linear infinite;
+    pointer-events: none;
+}
+
+@keyframes scan {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
