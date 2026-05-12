@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Orbitron:wght@500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js Library -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -33,12 +34,11 @@
                 <div class="world-map-bg"></div>
             </header>
 
-            <!-- Top Cards -->
+            <!-- Top Cards (Widgets) -->
             <section class="top-widgets">
                 <div class="card card-glow">
                     <div class="card-info">
                         <span>Current Temperature</span>
-                        <!-- ID DITAMBAHKAN DISINI -->
                         <div id="temp-val" class="value neon-text">--.-°C</div>
                     </div>
                     <div class="icon-circle"><i class="fas fa-thermometer-half"></i></div>
@@ -48,14 +48,12 @@
                     <span>System Status</span>
                     <div class="status-box">
                         <i class="fas fa-desktop"></i>
-                        <!-- ID DITAMBAHKAN DISINI -->
                         <span id="status-val" class="neon-green">CONNECTING</span>
                     </div>
                 </div>
 
                 <div class="card">
                     <span>Daily Average</span>
-                    <!-- ID DITAMBAHKAN DISINI -->
                     <div id="avg-display" class="value">--.-°C</div>
                 </div>
             </section>
@@ -74,9 +72,10 @@
                 </div>
             </section>
 
-            <!-- Bottom Section -->
+            <!-- Bottom Section Grid -->
             <div class="bottom-grid">
-                <!-- History Table -->
+                
+                <!-- 1. History Table -->
                 <section class="history-section card">
                     <h2><i class="fas fa-history"></i> Temperature History</h2>
                     <table class="history-table">
@@ -84,20 +83,30 @@
                             <tr>
                                 <th>Timestamp</th>
                                 <th>Temperature</th>
-                                <th>Change Trend</th>
+                                <th>Trend</th>
                             </tr>
                         </thead>
                         <tbody id="historyBody">
-                            <!-- JS injected rows -->
+                            <!-- Injected by JavaScript -->
                         </tbody>
                     </table>
                 </section>
 
-                <!-- Summary Sidebar -->
+                <!-- 2. Radar System (New Section) -->
+                <section class="radar-section card">
+                    <h2><i class="fas fa-satellite-dish"></i>Gelombang ultrasonik</h2>
+                    <div class="radar-container" style="position: relative; background: #0b0e14; border-radius: 12px; padding: 10px; display: flex; flex-direction: column; align-items: center;">
+                        <canvas id="radarCanvas"></canvas>
+                        <div id="radar-info" style="margin-top: 10px; font-family: 'Orbitron', sans-serif; color: #00ff9d; font-size: 0.9rem;">
+                            OBJECT AT: <span id="radar-dist">--</span> cm
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. Summary Section -->
                 <section class="summary-section card">
                     <h3>Summary (Past 1 Hour)</h3>
                     <div class="summary-list">
-                        <!-- ID DITAMBAHKAN PADA VALUE -->
                         <div class="sum-item"><span>Avg Temp:</span> <span id="stat-avg">--</span></div>
                         <div class="sum-item"><span>Peak Temp:</span> <span id="stat-peak">--</span></div>
                         <div class="sum-item"><span>Low Temp:</span> <span id="stat-low">--</span></div>
@@ -107,12 +116,17 @@
                             <span>Data Integrity: 100%</span>
                             <i class="fas fa-info-circle"></i>
                         </div>
-                        <div class="progress-bar"><div class="progress" style="width: 100%"></div></div>
+                        <div class="progress-bar">
+                            <div class="progress" style="width: 100%"></div>
+                        </div>
                     </div>
                 </section>
-            </div>
+
+            </div> <!-- End Bottom Grid -->
         </main>
     </div>
+
+    <!-- JavaScript File -->
     <script src="script.js"></script>
 </body>
 </html>
